@@ -1,0 +1,10 @@
+PREFIX dcat: <http://www.w3.org/ns/dcat#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+INSERT DATA {
+  GRAPH <{{datasetURL}}> {
+    {%- for key,value in datasetContent.iterrows() %}
+    <{{ value['s'] }}>    <{{ value['p'] }}> {%- if value['datatype'].lower() == "none" %}  <{{value['o']}}>{%- else %}   "{{value['o']|replace('\n','\\n')}}"^^<{{value['datatype']}}>{% endif -%} .
+    {%- endfor %}
+  }
+}

@@ -1,0 +1,5 @@
+sources :
+  0:
+    baseUrl: http://localhost:3030/FAIR-EASE
+    username: admin
+    password: test123

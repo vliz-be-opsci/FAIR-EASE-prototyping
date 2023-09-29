@@ -1,0 +1,17 @@
+sources:
+  0:
+    baseurl: http://localhost:8080/erddap/info/catalog.ttl
+    contactPoint: M C
+    id: localhost
+    latestHarvested: '2023-09-06T09:27:51Z'
+    name: Localhost Test Server
+    harvestEveryNSecond: 3
+    type: erddap
+
+
+harvester_config:
+  triplestore:
+    baseUrl: http://localhost:3030/FAIR-EASE
+    datasetname: FAIR-EASE
+    password: test123
+    username: admin

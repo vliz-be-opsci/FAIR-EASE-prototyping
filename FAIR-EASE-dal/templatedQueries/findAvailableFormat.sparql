@@ -1,0 +1,17 @@
+PREFIX dcat:     <http://www.w3.org/ns/dcat#>
+PREFIX dct:      <http://purl.org/dc/terms/>
+
+SELECT DISTINCT ?format ?downloadUrl
+WHERE {
+    GRAPH <{{datasetURL}}> {
+                    ?dataset        a                       dcat:Dataset              ;
+                                    dcat:distribution       ?distribution             .
+
+                    ?distribution 	dcat:downloadURL        ?downloadUrl              .
+        OPTIONAL {  ?distribution   dcat:mediaType          ?format                   . } .
+        OPTIONAL {  ?distribution   dct:format              ?format                   . } .
+        FILTER (CONTAINS(lcase(str(?format)), str('{{format}}')))
+        # FILTER ( REGEX(str(?format), ".*(?:{{format}}).*", "i"))
+        # Need to figure out which Filter is the faster on large storage / with a lot constrains
+    }
+} ORDER BY ASC(?format) LIMIT 1

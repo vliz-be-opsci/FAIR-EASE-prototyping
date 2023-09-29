@@ -1,0 +1,39 @@
+PREFIX hydra:    <http://www.w3.org/ns/hydra/core#>
+PREFIX rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:     <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema:   <http://schema.org/>
+PREFIX xsd:      <http://www.w3.org/2001/XMLSchema#>
+PREFIX fairease: <http://fairease.eu/>
+
+SELECT DISTINCT ?spatialGeneratedValue ?temporalStartV ?temporalEndV
+WHERE {
+    GRAPH <{{datasetURL}}> {
+        # ==============================================================
+        ?hydraOperation    rdf:type                 hydra:Operation    ;
+                           dct:spatial              ?spatial           ;
+                           dct:temporal             ?temporal          .
+        # ==============================================================
+        ?spatial           rdf:type                 dct:Location       ;
+                           fairease:generatedValue  ?spatialGenerated  .
+
+        ?spatialGenerated  rdf:type                 fairease:Template  ;
+                           fairease:valueType       geo:wktLiteral     ;
+                           fairease:targetProperty  dcat:bbox          ;
+                           fairease:valueTemplate   ?dateBbox          .
+        # ==============================================================
+        ?temporal          rdf:type                 dct:PeriodOfTime   ;
+                           fairease:generatedValue  ?temporalStart     ;
+                           fairease:generatedValue  ?temporalEnd       .
+
+        ?temporalStart     rdf:type                 fairease:Template  ;
+                           fairease:targetProperty  dcat:startDate     ;
+                           fairease:valueType       xsd:dateTime       ;
+                           fairease:valueTemplate   ?temporalStartV    .
+
+        ?temporalEnd       rdf:type                 fairease:Template  ;
+                           fairease:targetProperty  dcat:endDate       ;
+                           fairease:valueType       xsd:dateTime       ;
+                           fairease:valueTemplate   ?temporalEndV      .
+        # ==============================================================
+    }
+}

@@ -1,0 +1,130 @@
+PREFIX csvw:     <http://www.w3.org/ns/csvw#>
+PREFIX dcat:     <http://www.w3.org/ns/dcat#>
+PREFIX dct:      <http://purl.org/dc/terms/>
+PREFIX fairease: <http://fairease.eu#>
+PREFIX foaf:     <http://xmlns.com/foaf/0.1/>
+PREFIX geo:      <http://www.opengis.net/ont/geosparql#>
+PREFIX hydra:    <http://www.w3.org/ns/hydra/core#>
+PREFIX qudt:     <http://qudt.org/schema/qudt/>
+PREFIX rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:     <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema:   <http://schema.org/>
+PREFIX sh:       <http://www.w3.org/ns/shacl#>
+PREFIX xsd:      <http://www.w3.org/2001/XMLSchema#>
+PREFIX iana:     <https://www.iana.org/assignments/media-types/>
+
+SELECT DISTINCT ?datasetURL
+WHERE {
+    GRAPH ?datasetURL {
+        ?dataset                a                           dcat:Dataset            .
+        {% if bbox != undefined and bbox|string|length > 0 %}
+        # SPATIAL COVERAGE
+        ?dataset                dct:spatial                 ?spatialBlankNode       .
+        ?spatialBlankNode       a                           dct:Location            ;
+                                dcat:bbox                   ?bbox                   .
+        ?bbox                   geo:sfIntersects              "{{bbox}}"^^geo:wktLiteral  .
+        {% endif -%}
+        {% if minDate != undefined and minDate|string|length > 0 or maxDate != undefined and maxDate|string|length > 0 %}
+        # DATE
+        ?dataset                dct:temporal                ?temporalBlankNode      .
+        ?temporalBlankNode      a                           dct:PeriodOfTime        ;
+                                dcat:startDate              ?startDate              ;
+                                dcat:endDate                ?endDate                .
+        FILTER (
+{%- if minDate != undefined and minDate|string|length > 0 -%}?startDate <= "{{minDate}}"^^xsd:dateTime{%- endif -%}
+{%- if minDate != undefined and minDate|string|length > 0 and maxDate != undefined and maxDate|string|length > 0 -%}&&{%- endif -%}
+{%- if maxDate != undefined and maxDate|string|length > 0 -%}"{{maxDate}}"^^xsd:dateTime <= ?endDate{%- endif -%}
+)
+        {% endif -%}
+        {% if keywords != undefined and keywords|length > 0 %}
+        # KEYWORDS
+        ?dataset                 dcat:keyword                ?keyword               .
+        FILTER (str(?keyword) IN ("{{keywords|join('", "')}}"))
+        {% endif -%}
+        {% if eurobisDataset != undefined and eurobisDataset|length > 0 %}
+        # EUROBIS Referer Dataset
+        ?dataset                 dct:type                    ?eurobisReferer        .
+        FILTER (str(?eurobisReferer) IN ("{{eurobisDataset|join('", "')}}"))
+        {% endif -%}
+        {% if eurobisColumn != undefined and eurobisColumn|length > 0 %}
+        # EUROBIS Referer Column
+        ?dataset                dct:conformsTo          ?dctConformsTo              .
+        ?dctConformsTo          a                       csvw:TableSchema            ;
+                                csvw:column             ?column                     .
+        OPTIONAL {?column       dct:type                ?eurobisColumn              . } .
+        FILTER (str(?eurobisColumn) IN ("{{eurobisColumn|join('", "')}}"))
+        {% endif -%}
+        {% if inTitle != undefined and inTitle|length > 0 %}
+        # TITLE
+        ?dataset                dct:title               ?title                      .
+        FILTER (CONTAINS(lcase(str(?title)), "{{'") || CONTAINS(lcase(str(?title)), "'.join(inTitle)|lower}}"))
+        # FILTER ( REGEX(str(?title), ".*(?:{{'|'.join(inTitle)}}).*", "i"))
+        # Need to figure out which Filter is the faster on large storage / with a lot constrains
+        {% endif -%}
+        {% if inLicense != undefined and inLicense|length > 0 %}
+        # LICENSE
+        ?dataset                dct:license                 ?license                .
+        FILTER (CONTAINS(lcase(str(?license)), "{{'") || CONTAINS(lcase(str(?license)), "'.join(inLicense)|lower}}"))
+        # FILTER ( REGEX(str(?license), ".*(?:{{'|'.join(inLicense)}}).*", "i"))
+        # Need to figure out which Filter is the faster on large storage / with a lot constrains
+        {% endif -%}
+        {% if inDescription != undefined and inDescription|length > 0 %}
+        # DESCRIPTION
+        ?dataset                dct:description             ?description            .
+        FILTER (CONTAINS(lcase(str(?description)), "{{'") || CONTAINS(lcase(str(?description)), "'.join(inDescription)|lower}}"))
+        # FILTER ( REGEX(str(?description), ".*(?:{{'|'.join(inDescription)}}).*", "i"))
+        # Need to figure out which Filter is the faster on large storage / with a lot constrains
+        {% endif -%}
+        {% if minDatasetCreationDate != undefined and minDatasetCreationDate|string|length > 0 or maxDatasetCreationDate != undefined and maxDatasetCreationDate|string|length > 0 %}
+        # CREATION DATE
+        ?dataset                 dct:issued                  ?creationDate          .
+        FILTER (
+{%- if minDatasetCreationDate != undefined and minDatasetCreationDate|string|length > 0 -%}"{{minDatasetCreationDate}}"^^xsd:dateTime <= ?creationDate{%- endif -%}
+{%- if minDatasetCreationDate != undefined and minDatasetCreationDate|string|length > 0 and maxDatasetCreationDate != undefined and maxDatasetCreationDate|string|length > 0 -%}&&{%- endif -%}
+{%- if maxDatasetCreationDate != undefined and maxDatasetCreationDate|string|length > 0 -%}?creationDate <= "{{maxDatasetCreationDate}}"^^xsd:dateTime{%- endif -%}
+)
+        {% endif -%}
+        {% if format != undefined and format|string|length > 0 %}
+        # FORMAT
+        ?dataset                 dcat:distribution        ?distribution             .
+        OPTIONAL { ?distribution  dcat:mediaType          ?format                   . } .
+        OPTIONAL { ?distribution  dct:format              ?format                   . } .
+        FILTER (CONTAINS(lcase(str(?format)), "{{'") || CONTAINS(lcase(str(?format)), "'.join(format)|lower}}"))
+        # FILTER ( REGEX(str(?format), ".*(?:{{')|('.join(format)}}).*", "i"))
+        # Need to figure out which Filter is the faster on large storage / with a lot constrains
+        {% endif -%}
+        {%- if involvedList != undefined and involvedList|length > 0 -%}
+        {%- if involvedList[0]|string == '*' -%}
+        {%- set involvedList=['contact', 'creator', 'publisher'] -%}
+        {%- endif -%}
+        {%- set maximumList=['contact', 'creator', 'publisher'] -%}
+        {%- for involved in involvedList if involved in maximumList %}
+
+        # {{involved|capitalize}} Point 
+        ?dataset                 {{'dcat:contactPoint' if involved == 'contact' else 'dct:publisher' if involved == 'publisher' else 'dct:creator'}}           ?{{involved}} .
+        OPTIONAL {  ?{{involved}}       a                           foaf:group ; 
+                                        foaf:member                 ?{{involved}} . } . 
+        OPTIONAL {  ?{{involved}}       a                           foaf:organization ;
+                                        foaf:member                 ?{{involved}} . } .
+        {%- if involvedName != undefined and involvedName|length > 0 %}
+            # Name
+            ?{{involved}}       foaf:name                   ?name                                                   .
+            FILTER( regex(str(?name), str(".*(?:{{')|('.join(involvedName)}}).*"), "i"))                                                              
+        {%- endif %}
+        {%- if involvedUrl != undefined and involvedUrl|length > 0 %}
+            # URL
+            ?{{involved}}       foaf:workplaceHomepage                   ?url                                      .
+            FILTER( regex(str(?url), str(".*(?:{{')|('.join(involvedUrl)}}).*"), "i"))                                                           
+        {%- endif %}
+        {%- if involvedMail != undefined and involvedMail|length > 0 %}
+            # MAIL BOX
+            ?{{involved}}       foaf:mbox                   ?mbox                                                   .
+            FILTER( regex(str(?mbox), str(".*(?:{{')|('.join(involvedMail)}}).*"), "i"))                                                              
+        {%- endif %}
+        {%- endfor %}
+        {%- endif %}
+    }
+}
+
+
+
